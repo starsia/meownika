@@ -1,45 +1,24 @@
-// import { useState } from 'react'
-// import reactLogo from './assets/react.svg'
-// import viteLogo from '/vite.svg'
-// import './App.css'
-
-// function App() {
-//   const [count, setCount] = useState(0)
-
-//   return (
-//     <>
-//       <div>
-//         <a href="https://vite.dev" target="_blank">
-//           <img src={viteLogo} className="logo" alt="Vite logo" />
-//         </a>
-//         <a href="https://react.dev" target="_blank">
-//           <img src={reactLogo} className="logo react" alt="React logo" />
-//         </a>
-//       </div>
-//       <h1>Vite + React</h1>
-//       <div className="card">
-//         <button onClick={() => setCount((count) => count + 1)}>
-//           count is {count}
-//         </button>
-//         <p>
-//           Edit <code>src/App.jsx</code> and save to test HMR
-//         </p>
-//       </div>
-//       <p className="read-the-docs">
-//         Click on the Vite and React logos to learn more
-//       </p>
-//     </>
-//   )
-// }
-
-// export default App
-
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import axios from "axios";
 
 function App() {
   const [message, setMessage] = useState("");
   const [response, setResponse] = useState("");
+  const [images, setImages] = useState([]);
+
+  // Fetch cat images from backend on load
+  useEffect(() => {
+    const fetchImages = async () => {
+      try {
+        const res = await axios.get("http://localhost:8000/get_cat_pictures");
+        setImages(res.data.images);
+      } catch (error) {
+        console.error("Error fetching images:", error);
+      }
+    };
+
+    fetchImages();
+  }, []);
 
   const sendMessage = async () => {
     if (!message.trim()) return;
@@ -68,6 +47,13 @@ function App() {
         Send
       </button>
       <pre className="mt-4 p-2 border rounded w-80 whitespace-pre-wrap">{response}</pre>
+
+      {/* Display Images */}
+      <div className="mt-4 grid grid-cols-2 gap-4">
+        {images.map((src, index) => (
+          <img key={index} src={`http://localhost:8000${src}`} alt={`Cat ${index + 1}`} className="w-40 h-40 object-cover rounded-lg shadow-md" />
+        ))}
+      </div>
     </div>
   );
 }

@@ -1,4 +1,5 @@
 import json
+import re
 import time
 import openai
 import os
@@ -7,6 +8,7 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from dotenv import load_dotenv
+from fastapi.staticfiles import StaticFiles
 
 load_dotenv()
 app = FastAPI()
@@ -86,6 +88,17 @@ assistant = client.beta.assistants.create(
     tools=tools
 )
 
+# # Delete all photos in the 'cat_pictures' directory
+# folder = "cat_pictures"
+# if os.path.exists(folder):
+#     for file in os.listdir(folder):
+#         file_path = os.path.join(folder, file)
+#         try:
+#             if os.path.isfile(file_path):
+#                 os.unlink(file_path)  # Remove the file
+#         except Exception as e:
+#             print(f"Failed to delete {file_path}: {e}")
+
 thread = client.beta.threads.create()
 
 def wait_on_run(run):
@@ -155,10 +168,50 @@ def send_and_run(content):
         
         for message in messages:
             if message.role == "assistant":
-                return message.content[0].text.value 
+                assistant_response = message.content[0].text.value
+                # Extract URLs and remove trailing parentheses if present
+                picture_urls = [url.rstrip(')') for url in re.findall(r'(https?://[^\s]+)', assistant_response)]
+                download_images(picture_urls)
+                return assistant_response
     else:
         return f"Something went wrong, here's the run status: {run.status}"
 
+
+# Serve static images from the 'cat_pictures' directory
+app.mount("/cat_pictures", StaticFiles(directory="cat_pictures"), name="cat_pictures")
+
+@app.get("/get_cat_pictures")
+def get_cat_pictures():
+    images = os.listdir("cat_pictures")
+    return {"images": [f"/cat_pictures/{img}" for img in images]}
+
+def download_images(urls, folder="cat_pictures"):
+    # Ensure the folder exists
+    os.makedirs(folder, exist_ok=True)
+    
+    # Get the current count of images in the folder to avoid overwriting
+    existing_files = os.listdir(folder)
+    existing_count = len(existing_files)
+    
+    for i, url in enumerate(urls):
+        try:
+            response = requests.get(url, stream=True)
+            response.raise_for_status()  # Raise an error for failed requests
+            
+            # Save the image with a unique name based on the existing count
+            file_path = os.path.join(folder, f"cat_{existing_count + i + 1}.jpg")
+            with open(file_path, "wb") as file:
+                for chunk in response.iter_content(1024):
+                    file.write(chunk)
+            
+            print(f"Downloaded: {file_path}")
+
+        except requests.exceptions.RequestException as e:
+            print(f"Failed to download {url}: {e}")
+
+# Example usage:
+# picture_urls = ["https://cdn2.thecatapi.com/images/7pk.gif", "https://cdn2.thecatapi.com/images/bqv.jpg"]
+# download_images(picture_urls)
 
 
 # POST endpoint for interacting with OpenAI Assistant
@@ -169,6 +222,7 @@ class AssistantRequest(BaseModel):
 async def cats_now(request: AssistantRequest):
     """Handles requests to OpenAI Assistant for cat image URLs."""
     output = send_and_run(request.message)
+
     return output
 
 # Allow script to start the FastAPI server automatically
