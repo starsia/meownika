@@ -14,9 +14,7 @@ app = FastAPI()
 # Enable CORS
 app.add_middleware(
     CORSMiddleware,
-    # allow_origins=["http://localhost:8000", "http://127.0.0.1:8000"],
-    allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"],
-    # allow_origins=["http://localhost:3000", "http://127.0.0.1:3000"],
+        allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"],  # Ensure frontend origins are allowed
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -102,6 +100,14 @@ def wait_on_run(run):
 
 # Create a message with content as argument and return a run
 def send_and_run(content):
+# Check if there's an active run in the thread
+    active_runs = client.beta.threads.runs.list(thread_id=thread.id)
+    for run in active_runs:
+        if run.status in ["queued", "in_progress"]:
+            # Wait for the active run to complete
+            wait_on_run(run)
+
+    # Create a new message
     message = client.beta.threads.messages.create(
         thread_id=thread.id,
         role="user",
@@ -146,7 +152,10 @@ def send_and_run(content):
         messages = client.beta.threads.messages.list(
             thread_id=thread.id
         )
-        return messages
+        
+        for message in messages:
+            if message.role == "assistant":
+                return message.content[0].text.value 
     else:
         return f"Something went wrong, here's the run status: {run.status}"
 
@@ -156,8 +165,8 @@ def send_and_run(content):
 class AssistantRequest(BaseModel):
     message: str  # Example: "I want 3 cats"
 
-@app.post("/cats-now")
-def get_cats_now(request: AssistantRequest):
+@app.post("/cats_now/")
+async def cats_now(request: AssistantRequest):
     """Handles requests to OpenAI Assistant for cat image URLs."""
     output = send_and_run(request.message)
     return output
