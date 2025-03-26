@@ -1,69 +1,162 @@
 import openai
 import os
-from dotenv import find_dotenv, load_dotenv
+import requests
+from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel
+from dotenv import load_dotenv
 
-# reads key-value pairs from .env file and can set them as environment variables
 load_dotenv()
+app = FastAPI()
+
+# Enable CORS
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:3000", "http://127.0.0.1:3000"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 client = openai.Client()
 model = "gpt-4o-mini"
 
-#== Create Assistant ==#
+CAT_API_KEY = "live_YOUR_CAT_API_KEY"  # Add your Cat API key here
+CAT_API_URL = "https://api.thecatapi.com/v1"
+
+def get_cat_image(breed_id):
+    headers = {"x-api-key": CAT_API_KEY}
+    response = requests.get(f"{CAT_API_URL}/images/search?breed_ids={breed_id}", headers=headers)
+    if response.ok:
+        return response.json()[0]["url"]
+    return None
+
+def get_breed_id(breed_name):
+    headers = {"x-api-key": CAT_API_KEY}
+    response = requests.get(f"{CAT_API_URL}/breeds/search?q={breed_name}", headers=headers)
+    if response.ok and response.json():
+        return response.json()[0]["id"]
+    return None
+
+# Define available functions
+available_functions = {
+    "get_cat_image": {
+        "name": "get_cat_image",
+        "description": "Get an image of a specific cat breed",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "breed_name": {
+                    "type": "string",
+                    "description": "The name of the cat breed"
+                }
+            },
+            "required": ["breed_name"]
+        }
+    }
+}
+
+# Initialize assistant with function calling
 assistant = client.beta.assistants.create(
-    name = "MeowNika",
-    instructions="you are a cat master, and you know all the cats in the world. your user will prompt you with cat breeds, and you will respond with a fun fact about that breed.",
-    model=model
+    name="MeowNika",
+    instructions="You are a cat expert. When users ask about cat breeds, provide information and show images when requested.",
+    model=model,
+    tools=[{"type": "function", "function": available_functions["get_cat_image"]}]
 )
 
-# A Thread represents a conversation between a user and one or many Assistants.
-thread = client.beta.threads.create()
+# Store thread IDs
+threads = {}
 
-# add message to thread
-message = client.beta.threads.messages.create(
-  thread_id=thread.id,
-  role="user",
-  content="I want to know about the American Shorthair. Can you help me?"
-)
+class ChatMessage(BaseModel):
+    message: str
+    thread_id: str = "thread_pF2QmEYdF009PiVcYWAmkoGF"  # Fix default value
 
-from typing_extensions import override
-from openai import AssistantEventHandler
- 
-# First, we create a EventHandler class to define
-# how we want to handle the events in the response stream.
- 
-class EventHandler(AssistantEventHandler):    
-  @override
-  def on_text_created(self, text) -> None:
-    print(f"\nassistant > ", end="", flush=True)
-      
-  @override
-  def on_text_delta(self, delta, snapshot):
-    print(delta.value, end="", flush=True)
-      
-  def on_tool_call_created(self, tool_call):
-    print(f"\nassistant > {tool_call.type}\n", flush=True)
-  
-  def on_tool_call_delta(self, delta, snapshot):
-    if delta.type == 'code_interpreter':
-      if delta.code_interpreter.input:
-        print(delta.code_interpreter.input, end="", flush=True)
-      if delta.code_interpreter.outputs:
-        print(f"\n\noutput >", flush=True)
-        for output in delta.code_interpreter.outputs:
-          if output.type == "logs":
-            print(f"\n{output.logs}", flush=True)
- 
-# Then, we use the `stream` SDK helper 
-# with the `EventHandler` class to create the Run 
-# and stream the response.
- 
-with client.beta.threads.runs.stream(
-  thread_id=thread.id,
-  assistant_id=assistant.id,
-  instructions="Please address the user as Nika.",
-  event_handler=EventHandler(),
-) as stream:
-  stream.until_done()
+@app.get("/")
+def read_root():
+    return {"Hello": "World"}
 
-  print(f"\nAssistant ID: {assistant.id}\n")
-  print(f"Thread ID: {thread.id}\n")
+class Item(BaseModel):
+    name: str
+    description: str = None
+    price: float
+    tax: float = None
+
+@app.post("/items/")
+def create_item(item: Item):
+    return item
+
+@app.post("/chat")
+async def chat(chat_message: ChatMessage):
+    try:
+        print(f"Received message: {chat_message.message}")
+        print(f"Thread ID: {chat_message.thread_id}")
+        
+        if chat_message.thread_id == "null" or not chat_message.thread_id:
+            print("Creating new thread")
+            thread = client.beta.threads.create()
+            thread_id = thread.id
+        else:
+            thread_id = chat_message.thread_id
+        
+        print(f"Using thread ID: {thread_id}")
+
+        # Add message to thread
+        message = client.beta.threads.messages.create(
+            thread_id=thread_id,
+            role="user",
+            content=chat_message.message
+        )
+
+        # Run the assistant
+        run = client.beta.threads.runs.create(
+            thread_id=thread_id,
+            assistant_id=assistant.id,
+            instructions="Please address the user as Nika."
+        )
+
+        # Wait for run completion
+        while True:
+            run_status = client.beta.threads.runs.retrieve(
+                thread_id=thread_id,
+                run_id=run.id
+            )
+            
+            if run_status.status == 'requires_action':
+                # Handle function calling
+                tool_calls = run_status.required_action.submit_tool_outputs.tool_calls
+                tool_outputs = []
+                
+                for tool_call in tool_calls:
+                    if tool_call.function.name == "get_cat_image":
+                        breed_name = eval(tool_call.function.arguments)["breed_name"]
+                        breed_id = get_breed_id(breed_name)
+                        image_url = get_cat_image(breed_id) if breed_id else None
+                        tool_outputs.append({
+                            "tool_call_id": tool_call.id,
+                            "output": image_url if image_url else "No image found for this breed."
+                        })
+
+                # Submit outputs back to assistant
+                run = client.beta.threads.runs.submit_tool_outputs(
+                    thread_id=thread_id,
+                    run_id=run.id,
+                    tool_outputs=tool_outputs
+                )
+            elif run_status.status == 'completed':
+                messages = client.beta.threads.messages.list(thread_id=thread_id)
+                return {
+                    "thread_id": thread_id,
+                    "response": messages.data[0].content[0].text.value,
+                    "image_url": tool_outputs[0]["output"] if 'tool_outputs' in locals() else None
+                }
+            elif run_status.status == 'failed':
+                raise HTTPException(status_code=500, detail="Assistant failed to respond")
+
+    except Exception as e:
+        print(f"Error occurred: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+if __name__ == "__main__":
+    import uvicorn
+    # run on all active ip addresses, 8000 is default port for FastAPI
+    uvicorn.run(app, host="0.0.0.0", port=8000)
