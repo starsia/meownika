@@ -14,7 +14,8 @@ app = FastAPI()
 # Enable CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:8000", "http://127.0.0.1:8000"],
+    # allow_origins=["http://localhost:8000", "http://127.0.0.1:8000"],
+    allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"],
     # allow_origins=["http://localhost:3000", "http://127.0.0.1:3000"],
     allow_credentials=True,
     allow_methods=["*"],
@@ -112,6 +113,9 @@ def send_and_run(content):
         assistant_id=assistant.id,
         instructions="Please address the user as Nika."
     )
+
+    # Wait for completion
+    run = wait_on_run(run)
 
     # print(run.status)
 
