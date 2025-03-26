@@ -117,35 +117,30 @@ def send_and_run(content):
     # Wait for completion
     run = wait_on_run(run)
 
-    # print(run.status)
+    # Initialize task as None
+    task = None
 
     if run.status == "requires_action":
         tool_call = run.required_action.submit_tool_outputs.tool_calls[0]
         name = tool_call.function.name
         arguments = json.loads(tool_call.function.arguments)
+        
+        # Call the Function from our Python code
+        task = get_cat_photo_url(**arguments)
 
-        # print("Waiting for custom Function:", name)
-        # print("Function arguments:")
-        # print(arguments)
+        # Inform the model that the Function was called
+        run = client.beta.threads.runs.submit_tool_outputs(
+            thread_id=thread.id,
+            run_id=run.id,
+            tool_outputs=[
+                {
+                    "tool_call_id": tool_call.id,
+                    "output": json.dumps(task),
+                }
+            ],
+        )
 
-
-    # Call the Function from our Python code
-    task = get_cat_photo_url(**arguments)
-
-
-    # Inform the model that the Function was called
-    run = client.beta.threads.runs.submit_tool_outputs(
-        thread_id=thread.id,
-        run_id=run.id,
-        tool_outputs=[
-            {
-                "tool_call_id": tool_call.id,
-                "output": json.dumps(task),  # Send the URLs back to OpenAI Assistant
-            }
-        ],
-    )
-
-    run = wait_on_run(run)
+        run = wait_on_run(run)
 
     if run.status == 'completed': 
         messages = client.beta.threads.messages.list(
