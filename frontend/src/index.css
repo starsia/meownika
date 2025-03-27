@@ -107,6 +107,23 @@ footer {
   bottom: 0;
   z-index: 10;
   background-color: #ffffff;
+  display: flex;
+  align-items: center; /* Vertically align input and button */
+  padding: 0.5rem; /* Add padding for better spacing */
+}
+
+footer .flex {
+  display: flex;
+  width: 100%; /* Ensure the input and button take up the full width */
+}
+
+footer input {
+  flex-grow: 1; /* Make the input field take up the remaining space */
+  margin-right: 0.5rem; /* Add spacing between the input and button */
+}
+
+footer button {
+  flex-shrink: 0; /* Prevent the button from shrinking */
 }
 
 main {
