@@ -206,10 +206,10 @@ def download_images(urls, folder="cat_pictures"):
 # Serve static images from the 'cat_pictures' directory
 app.mount("/cat_pictures", StaticFiles(directory="cat_pictures"), name="cat_pictures")
 
-@app.get("/get_cat_pictures")
-def get_cat_pictures():
-    images = os.listdir("cat_pictures")
-    return {"images": [f"/cat_pictures/{img}" for img in images]}
+# @app.get("/get_cat_pictures")
+# def get_cat_pictures():
+#     images = os.listdir("cat_pictures")
+#     return {"images": [f"/cat_pictures/{img}" for img in images]}
 
 # Example usage:
 # picture_urls = ["https://cdn2.thecatapi.com/images/7pk.gif", "https://cdn2.thecatapi.com/images/bqv.jpg"]
