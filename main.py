@@ -135,8 +135,9 @@ def send_and_run(content):
     # Wait for completion
     run = wait_on_run(run)
 
-    # Initialize task as None
+    # Initialize tool outputs and local paths
     tool_outputs = []
+    local_paths = []
 
     if run.status == "requires_action":
         for tool_call in run.required_action.submit_tool_outputs.tool_calls:
@@ -173,7 +174,7 @@ def send_and_run(content):
             if message.role == "assistant":
                 return {
                     "text": message.content[0].text.value,
-                    "images": local_paths
+                    "images": local_paths if local_paths else []  # Ensure images is an empty list if no images
                 }
     else:
         return {"text": f"Something went wrong, here's the run status: {run.status}", "images": []}

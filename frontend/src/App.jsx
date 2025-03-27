@@ -19,7 +19,7 @@ function App() {
       // Add bot response to chat
       setChat((prevChat) => [
         ...prevChat,
-        { sender: "bot", text, images },
+        { sender: "bot", text, images: images || [] }, // Ensure images is an empty array if not provided
       ]);
     } catch (error) {
       setChat((prevChat) => [
@@ -58,7 +58,7 @@ function App() {
             }`}
           >
             {entry.text && <p>{entry.text}</p>}
-            {entry.images &&
+            {entry.images.length > 0 &&
               entry.images.map((image, imgIndex) => (
                 <img
                   key={imgIndex}
