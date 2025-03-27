@@ -49,12 +49,6 @@ def get_cat_photo_url(quantity):
 # print(get_cat_photo_url(2))
 
 
-
-# @app.get("/get-cats")
-# def get_cats(quantity: int = 1):
-#     urls = get_cat_photo_url(quantity)
-#     return {"urls": urls}
-
 # Define the tools
 tools = [
     {
@@ -113,7 +107,7 @@ def wait_on_run(run):
 
 # Create a message with content as argument and return a run
 def send_and_run(content):
-# Check if there's an active run in the thread
+    # Check if there's an active run in the thread
     active_runs = client.beta.threads.runs.list(thread_id=thread.id)
     for run in active_runs:
         if run.status in ["queued", "in_progress"]:
@@ -137,26 +131,30 @@ def send_and_run(content):
     run = wait_on_run(run)
 
     # Initialize task as None
-    task = None
+    tool_outputs = []
 
     if run.status == "requires_action":
-        tool_call = run.required_action.submit_tool_outputs.tool_calls[0]
-        name = tool_call.function.name
-        arguments = json.loads(tool_call.function.arguments)
-        
-        # Call the Function from our Python code
-        task = get_cat_photo_url(**arguments)
+        for tool_call in run.required_action.submit_tool_outputs.tool_calls:
+            name = tool_call.function.name
+            arguments = json.loads(tool_call.function.arguments)
+            
+            # Call the Function from our Python code
+            task = get_cat_photo_url(**arguments)
 
-        # Inform the model that the Function was called
+            # Download images and get their local paths
+            local_paths = download_images(task)
+
+            # Add the tool output for this call
+            tool_outputs.append({
+                "tool_call_id": tool_call.id,
+                "output": json.dumps(local_paths),
+            })
+
+        # Submit all tool outputs at once
         run = client.beta.threads.runs.submit_tool_outputs(
             thread_id=thread.id,
             run_id=run.id,
-            tool_outputs=[
-                {
-                    "tool_call_id": tool_call.id,
-                    "output": json.dumps(task),
-                }
-            ],
+            tool_outputs=tool_outputs,
         )
 
         run = wait_on_run(run)
@@ -168,14 +166,36 @@ def send_and_run(content):
         
         for message in messages:
             if message.role == "assistant":
-                assistant_response = message.content[0].text.value
-                # Extract URLs and remove trailing parentheses if present
-                picture_urls = [url.rstrip(')') for url in re.findall(r'(https?://[^\s]+)', assistant_response)]
-                download_images(picture_urls)
-                return assistant_response
+                return {
+                    "text": message.content[0].text.value,
+                    "images": local_paths
+                }
     else:
-        return f"Something went wrong, here's the run status: {run.status}"
+        return {"text": f"Something went wrong, here's the run status: {run.status}", "images": []}
 
+def download_images(urls, folder="cat_pictures"):
+    # Ensure the folder exists
+    os.makedirs(folder, exist_ok=True)
+    
+    local_paths = []
+    existing_files = os.listdir(folder)
+    existing_count = len(existing_files)
+    
+    for i, url in enumerate(urls):
+        try:
+            response = requests.get(url, stream=True)
+            response.raise_for_status()
+            
+            file_path = os.path.join(folder, f"cat_{existing_count + i + 1}.jpg")
+            with open(file_path, "wb") as file:
+                for chunk in response.iter_content(1024):
+                    file.write(chunk)
+            
+            local_paths.append(f"/cat_pictures/{os.path.basename(file_path)}")
+        except requests.exceptions.RequestException as e:
+            print(f"Failed to download {url}: {e}")
+    
+    return local_paths
 
 # Serve static images from the 'cat_pictures' directory
 app.mount("/cat_pictures", StaticFiles(directory="cat_pictures"), name="cat_pictures")
@@ -184,30 +204,6 @@ app.mount("/cat_pictures", StaticFiles(directory="cat_pictures"), name="cat_pict
 def get_cat_pictures():
     images = os.listdir("cat_pictures")
     return {"images": [f"/cat_pictures/{img}" for img in images]}
-
-def download_images(urls, folder="cat_pictures"):
-    # Ensure the folder exists
-    os.makedirs(folder, exist_ok=True)
-    
-    # Get the current count of images in the folder to avoid overwriting
-    existing_files = os.listdir(folder)
-    existing_count = len(existing_files)
-    
-    for i, url in enumerate(urls):
-        try:
-            response = requests.get(url, stream=True)
-            response.raise_for_status()  # Raise an error for failed requests
-            
-            # Save the image with a unique name based on the existing count
-            file_path = os.path.join(folder, f"cat_{existing_count + i + 1}.jpg")
-            with open(file_path, "wb") as file:
-                for chunk in response.iter_content(1024):
-                    file.write(chunk)
-            
-            print(f"Downloaded: {file_path}")
-
-        except requests.exceptions.RequestException as e:
-            print(f"Failed to download {url}: {e}")
 
 # Example usage:
 # picture_urls = ["https://cdn2.thecatapi.com/images/7pk.gif", "https://cdn2.thecatapi.com/images/bqv.jpg"]
@@ -222,7 +218,6 @@ class AssistantRequest(BaseModel):
 async def cats_now(request: AssistantRequest):
     """Handles requests to OpenAI Assistant for cat image URLs."""
     output = send_and_run(request.message)
-
     return output
 
 # Allow script to start the FastAPI server automatically

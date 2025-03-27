@@ -65,6 +65,37 @@ button:focus-visible {
   box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
 }
 
+.chat-container {
+  max-height: 20rem;
+  overflow-y: auto;
+  background-color: #f9f9f9;
+  border: 1px solid #ddd;
+  border-radius: 0.5rem;
+  padding: 1rem;
+}
+
+.chat-message {
+  margin-bottom: 0.5rem;
+  padding: 0.5rem;
+  border-radius: 0.5rem;
+}
+
+.chat-message.user {
+  background-color: #cce5ff;
+  text-align: right;
+}
+
+.chat-message.bot {
+  background-color: #d4edda;
+  text-align: left;
+}
+
+.chat-message img {
+  margin-top: 0.5rem;
+  border-radius: 0.5rem;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
 @media (prefers-color-scheme: light) {
   :root {
     color: #213547;

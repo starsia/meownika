@@ -1,58 +1,88 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import axios from "axios";
 
 function App() {
   const [message, setMessage] = useState("");
-  const [response, setResponse] = useState("");
-  const [images, setImages] = useState([]);
-
-  // Fetch cat images from backend on load
-  useEffect(() => {
-    const fetchImages = async () => {
-      try {
-        const res = await axios.get("http://localhost:8000/get_cat_pictures");
-        setImages(res.data.images);
-      } catch (error) {
-        console.error("Error fetching images:", error);
-      }
-    };
-
-    fetchImages();
-  }, []);
+  const [chat, setChat] = useState([]);
+  const chatContainerRef = useRef(null);
 
   const sendMessage = async () => {
     if (!message.trim()) return;
+
+    // Add user message to chat
+    setChat((prevChat) => [...prevChat, { sender: "user", text: message }]);
+
     try {
       const res = await axios.post("http://localhost:8000/cats_now/", { message });
-      setResponse(JSON.stringify(res.data, null, 2));
+      const { text, images } = res.data;
+
+      // Add bot response to chat
+      setChat((prevChat) => [
+        ...prevChat,
+        { sender: "bot", text, images },
+      ]);
     } catch (error) {
-      setResponse("Error: Unable to fetch response.");
+      setChat((prevChat) => [
+        ...prevChat,
+        { sender: "bot", text: "Error: Unable to fetch response.", images: [] },
+      ]);
+    } finally {
+      setMessage("");
     }
   };
+
+  // Scroll to the bottom of the chat container when a new message is added
+  useEffect(() => {
+    if (chatContainerRef.current) {
+      chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
+    }
+  }, [chat]);
 
   return (
     <div className="flex flex-col items-center p-4">
       <h1 className="text-xl font-bold mb-4">Cat Chatbot</h1>
-      <input
-        type="text"
-        value={message}
-        onChange={(e) => setMessage(e.target.value)}
-        placeholder="Ask about cats..."
-        className="border p-2 rounded w-80"
-      />
-      <button
-        onClick={sendMessage}
-        className="mt-2 p-2 bg-blue-500 text-white rounded"
-      >
-        Send
-      </button>
-      <pre className="mt-4 p-2 border rounded w-80 whitespace-pre-wrap">{response}</pre>
 
-      {/* Display Images */}
-      <div className="mt-4 grid grid-cols-2 gap-4">
-        {images.map((src, index) => (
-          <img key={index} src={`http://localhost:8000${src}`} alt={`Cat ${index + 1}`} className="w-40 h-40 object-cover rounded-lg shadow-md" />
+      {/* Chat Container */}
+      <div
+        ref={chatContainerRef}
+        className="w-full max-w-md h-80 border p-4 rounded overflow-y-scroll bg-gray-100"
+      >
+        {chat.map((entry, index) => (
+          <div
+            key={index}
+            className={`mb-2 p-2 rounded ${
+              entry.sender === "user" ? "bg-blue-200 text-right" : "bg-green-200 text-left"
+            }`}
+          >
+            {entry.text && <p>{entry.text}</p>}
+            {entry.images &&
+              entry.images.map((image, imgIndex) => (
+                <img
+                  key={imgIndex}
+                  src={`http://localhost:8000${image}`}
+                  alt="Cat"
+                  className="w-40 h-40 object-cover rounded-lg shadow-md mt-2"
+                />
+              ))}
+          </div>
         ))}
+      </div>
+
+      {/* Input Section */}
+      <div className="mt-4 w-full max-w-md flex">
+        <input
+          type="text"
+          value={message}
+          onChange={(e) => setMessage(e.target.value)}
+          placeholder="Ask about cats..."
+          className="flex-grow border p-2 rounded-l"
+        />
+        <button
+          onClick={sendMessage}
+          className="p-2 bg-blue-500 text-white rounded-r"
+        >
+          Send
+        </button>
       </div>
     </div>
   );
