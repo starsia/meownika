@@ -39,13 +39,16 @@ function App() {
   }, [chat]);
 
   return (
-    <div className="flex flex-col items-center p-4">
-      <h1 className="text-xl font-bold mb-4">Cat Chatbot</h1>
+    <div className="flex flex-col h-screen">
+      {/* Header */}
+      <header className="bg-blue-500 text-white text-center py-4">
+        <h1 className="text-xl font-bold">Cat Chatbot</h1>
+      </header>
 
       {/* Chat Container */}
-      <div
+      <main
         ref={chatContainerRef}
-        className="w-full max-w-md h-80 border p-4 rounded overflow-y-scroll bg-gray-100"
+        className="flex-grow overflow-y-scroll bg-gray-100 p-4"
       >
         {chat.map((entry, index) => (
           <div
@@ -66,24 +69,26 @@ function App() {
               ))}
           </div>
         ))}
-      </div>
+      </main>
 
-      {/* Input Section */}
-      <div className="mt-4 w-full max-w-md flex">
-        <input
-          type="text"
-          value={message}
-          onChange={(e) => setMessage(e.target.value)}
-          placeholder="Ask about cats..."
-          className="flex-grow border p-2 rounded-l"
-        />
-        <button
-          onClick={sendMessage}
-          className="p-2 bg-blue-500 text-white rounded-r"
-        >
-          Send
-        </button>
-      </div>
+      {/* Footer */}
+      <footer className="bg-white border-t p-4">
+        <div className="flex">
+          <input
+            type="text"
+            value={message}
+            onChange={(e) => setMessage(e.target.value)}
+            placeholder="Ask about cats..."
+            className="flex-grow border p-2 rounded-l"
+          />
+          <button
+            onClick={sendMessage}
+            className="p-2 bg-blue-500 text-white rounded-r"
+          >
+            Send
+          </button>
+        </div>
+      </footer>
     </div>
   );
 }

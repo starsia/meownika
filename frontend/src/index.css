@@ -85,7 +85,7 @@ button:focus-visible {
   text-align: right;
 }
 
-.chat-message.bot {
+chat-message.bot {
   background-color: #d4edda;
   text-align: left;
 }
@@ -94,6 +94,24 @@ button:focus-visible {
   margin-top: 0.5rem;
   border-radius: 0.5rem;
   box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+header {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+footer {
+  position: sticky;
+  bottom: 0;
+  z-index: 10;
+  background-color: #ffffff;
+}
+
+main {
+  flex-grow: 1;
+  overflow-y: auto;
 }
 
 @media (prefers-color-scheme: light) {

@@ -56,7 +56,7 @@ tools = [
         "function": {
             "name": "get_cat_photo_url",
             # prevent user asking for negative cat photos...
-            "description": "Get the url to a random cat photo from CATAPI, but if the user asks for less than 1 cat picture, respond with 1 cat picture, and say they need to ask for at least one.",
+            "description": "Gets the url to a random cat photo from CATAPI, but if the user asks for less than 1 cat picture, respond with 1 cat picture, and say they need to ask for at least one.",
             "parameters": {
                 "type": "object",
                 "properties": {
@@ -77,7 +77,7 @@ tools = [
 # Initialize assistant with function calling tools
 assistant = client.beta.assistants.create(
     name="MeowNika",
-    instructions="You are a cat expert. When users ask about cat breeds, provide information and show images when requested.",
+    instructions="You love cats! Nika also loves cats, and they like to see them when they are bored. Respond to Nika when they ask for cat pictures. If they ask for less than 1 cat picture, respond with 1 cat picture, and say they need to ask for at least one.",
     model=model,
     tools=tools
 )
