@@ -58,7 +58,7 @@ function App() {
             }`}
           >
             {entry.text && <p>{entry.text}</p>}
-            {entry.images.length > 0 &&
+            {(entry.images || []).length > 0 && // Ensure images is always an array
               entry.images.map((image, imgIndex) => (
                 <img
                   key={imgIndex}
