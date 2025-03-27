@@ -77,7 +77,12 @@ tools = [
 # Initialize assistant with function calling tools
 assistant = client.beta.assistants.create(
     name="MeowNika",
-    instructions="You love cats! Nika also loves cats, and they like to see them when they are bored. Respond to Nika when they ask for cat pictures. If they ask for less than 1 cat picture, respond with 1 cat picture, and say they need to ask for at least one.",
+    instructions=(
+        "You love cats! Nika also loves cats, and they like to see them when they are bored. "
+        "When responding to Nika, do not include URLs in your text response. "
+        "Instead, provide the cat picture URLs as tool outputs, and focus your text response "
+        "on engaging stories or descriptions about cats."
+    ),
     model=model,
     tools=tools
 )
