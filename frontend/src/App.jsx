@@ -2,17 +2,20 @@ import { useState, useEffect, useRef } from "react";
 import axios from "axios";
 
 function App() {
+  // State to manage user input and chat history
   const [message, setMessage] = useState("");
   const [chat, setChat] = useState([]);
-  const chatContainerRef = useRef(null);
+  const chatContainerRef = useRef(null); // Reference to the chat container for scrolling
 
+  // Function to send a message to the backend
   const sendMessage = async () => {
-    if (!message.trim()) return;
+    if (!message.trim()) return; // Do nothing if the input is empty
 
     // Add user message to chat
     setChat((prevChat) => [...prevChat, { sender: "user", text: message }]);
 
     try {
+      // Send the message to the backend
       const res = await axios.post("http://localhost:8000/cats_now/", { message });
       const { text, images } = res.data;
 
@@ -22,21 +25,22 @@ function App() {
         { sender: "bot", text, images: images || [] }, // Ensure images is an empty array if not provided
       ]);
     } catch (error) {
+      // Add error message to chat
       setChat((prevChat) => [
         ...prevChat,
         { sender: "bot", text: "Error: Unable to fetch response.", images: [] },
       ]);
     } finally {
-      setMessage("");
+      setMessage(""); // Clear the input field
     }
   };
 
-  // Scroll to the bottom of the chat container when a new message is added
-  useEffect(() => {
-    if (chatContainerRef.current) {
-      chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
-    }
-  }, [chat]);
+  // // Scroll to the bottom of the chat container when a new message is added
+  // useEffect(() => {
+  //   if (chatContainerRef.current) {
+  //     chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
+  //   }
+  // }, [chat]);
 
   return (
     <div className="flex flex-col h-screen">

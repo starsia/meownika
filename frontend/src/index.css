@@ -1,18 +1,18 @@
+/* Root styles for font and color scheme */
 :root {
   font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
   line-height: 1.5;
   font-weight: 400;
-
   color-scheme: light dark;
   color: rgba(255, 255, 255, 0.87);
   background-color: #242424;
-
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
 
+/* Link styles */
 a {
   font-weight: 500;
   color: #646cff;
@@ -22,25 +22,29 @@ a:hover {
   color: #535bf2;
 }
 
+/* Body styles for layout */
 body {
   margin: 0;
   display: flex;
   flex-direction: column;
-  height: 100vh; /* Ensure the app spans the full height of the screen */
+  height: 100vh; /* Full height layout */
   overflow-x: hidden; /* Prevent horizontal scrolling */
 }
 
+/* Root container styles */
 #root {
   display: flex;
   flex-direction: column;
-  height: 100%; /* Ensure the app fills the viewport */
+  height: 100%; /* Fill the viewport */
 }
 
+/* Header styles */
 h1 {
   font-size: 3.2em;
   line-height: 1.1;
 }
 
+/* Button styles */
 button {
   border-radius: 8px;
   border: 1px solid transparent;
@@ -60,6 +64,7 @@ button:focus-visible {
   outline: 4px auto -webkit-focus-ring-color;
 }
 
+/* Grid layout styles */
 .grid {
   display: grid;
   gap: 1rem;
@@ -71,6 +76,7 @@ button:focus-visible {
   box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
 }
 
+/* Chat container styles */
 .chat-container {
   max-height: 20rem;
   overflow-y: auto;
@@ -78,79 +84,86 @@ button:focus-visible {
   border: 1px solid #ddd;
   border-radius: 0.5rem;
   padding: 1rem;
-  max-width: 100%; /* Ensure the chat container fits within the viewport */
-  word-wrap: break-word; /* Ensure long text wraps within the container */
+  max-width: 100%; /* Fit within the viewport */
+  word-wrap: break-word; /* Wrap long text */
   overflow-x: hidden; /* Prevent horizontal scrolling */
-  box-sizing: border-box; /* Include padding in the element's width */
+  box-sizing: border-box; /* Include padding in width */
 }
 
+/* Chat message styles */
 .chat-message {
   margin-bottom: 0.5rem;
   padding: 0.5rem;
   border-radius: 0.5rem;
-  max-width: 100%; /* Ensure messages fit within the chat container */
-  box-sizing: border-box; /* Include padding in the element's width */
+  max-width: 100%; /* Fit within the chat container */
+  box-sizing: border-box; /* Include padding in width */
 }
 
+/* User message styles */
 .chat-message.user {
   background-color: #cce5ff;
   text-align: right;
 }
 
+/* Bot message styles */
 chat-message.bot {
   background-color: #d4edda;
   text-align: left;
 }
 
+/* Image styles within chat messages */
 .chat-message img {
-  max-width: 100%; /* Ensure images fit within the chat bubble */
+  max-width: 100%; /* Fit within the chat bubble */
   height: auto; /* Maintain aspect ratio */
   margin-top: 0.5rem;
   border-radius: 0.5rem;
   box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
 }
 
+/* Header styles */
 header {
   position: sticky;
   top: 0;
   z-index: 10;
 }
 
+/* Footer styles */
 footer {
   position: sticky;
   bottom: 0;
   z-index: 10;
   background-color: #ffffff;
   display: flex;
-  align-items: center; /* Vertically align input and button */
-  padding: 0.5rem; /* Add padding for better spacing */
-  width: 100%; /* Ensure the footer spans the full width */
+  align-items: center; /* Align input and button vertically */
+  padding: 0.5rem; /* Add spacing */
+  width: 100%; /* Full width */
 }
 
+/* Footer input and button layout */
 footer .flex {
   display: flex;
-  width: 100%; /* Ensure the input and button take up the full width */
+  width: 100%; /* Full width */
 }
-
 footer input {
-  flex-grow: 1; /* Make the input field take up the remaining space */
-  margin-right: 0.5rem; /* Add spacing between the input and button */
-  max-width: 100%; /* Prevent the input field from exceeding the viewport width */
+  flex-grow: 1; /* Input takes remaining space */
+  margin-right: 0.5rem; /* Space between input and button */
+  max-width: 100%; /* Prevent overflow */
 }
-
 footer button {
-  flex-shrink: 0; /* Prevent the button from shrinking */
+  flex-shrink: 0; /* Prevent button from shrinking */
 }
 
+/* Main content styles */
 main {
   flex-grow: 1;
   overflow-y: auto;
-  overflow-x: hidden; /* Prevent horizontal scrolling in the chat container */
-  padding-left: 1rem; /* Add padding to prevent content from being cut off */
-  padding-right: 1rem; /* Add padding for symmetry */
-  box-sizing: border-box; /* Include padding in the element's width */
+  overflow-x: hidden; /* Prevent horizontal scrolling */
+  padding-left: 1rem; /* Prevent content from being cut off */
+  padding-right: 1rem; /* Symmetry */
+  box-sizing: border-box; /* Include padding in width */
 }
 
+/* Light mode styles */
 @media (prefers-color-scheme: light) {
   :root {
     color: #213547;
