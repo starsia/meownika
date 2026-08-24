@@ -2,101 +2,134 @@ import { useState, useEffect, useRef } from "react";
 import axios from "axios";
 
 function App() {
-  // State to manage user input and chat history
   const [message, setMessage] = useState("");
   const [chat, setChat] = useState([]);
   const [sessionId, setSessionId] = useState(null); // Ties this browser tab to one Claude conversation
-  const chatContainerRef = useRef(null); // Reference to the chat container for scrolling
+  const [isLoading, setIsLoading] = useState(false);
+  const messagesEndRef = useRef(null);
 
-  // Function to send a message to the backend
   const sendMessage = async () => {
-    if (!message.trim()) return; // Do nothing if the input is empty
+    const trimmed = message.trim();
+    if (!trimmed || isLoading) return;
 
-    // Add user message to chat
-    setChat((prevChat) => [...prevChat, { sender: "user", text: message }]);
+    setChat((prevChat) => [...prevChat, { sender: "user", text: trimmed }]);
+    setMessage("");
+    setIsLoading(true);
 
     try {
-      // Send the message to the backend
       const res = await axios.post("http://localhost:8000/cats_now/", {
-        message,
+        message: trimmed,
         session_id: sessionId,
       });
       const { text, images, session_id } = res.data;
       setSessionId(session_id);
 
-      // Add bot response to chat
       setChat((prevChat) => [
         ...prevChat,
-        { sender: "bot", text, images: images || [] }, // Ensure images is an empty array if not provided
+        { sender: "bot", text, images: images || [] },
       ]);
     } catch (error) {
-      // Add error message to chat
       setChat((prevChat) => [
         ...prevChat,
-        { sender: "bot", text: "Error: Unable to fetch response.", images: [] },
+        { sender: "bot", text: "Meow... something went wrong fetching a response.", images: [] },
       ]);
     } finally {
-      setMessage(""); // Clear the input field
+      setIsLoading(false);
     }
   };
 
-  // // Scroll to the bottom of the chat container when a new message is added
-  // useEffect(() => {
-  //   if (chatContainerRef.current) {
-  //     chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
-  //   }
-  // }, [chat]);
+  const handleKeyDown = (e) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      sendMessage();
+    }
+  };
+
+  // Keep the latest message in view
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [chat, isLoading]);
 
   return (
-    <div className="flex flex-col h-screen">
-      {/* Header */}
-      <header className="bg-blue-500 text-white text-center py-4">
-        <h1 className="text-xl font-bold">Cat Chatbot</h1>
+    <div className="flex h-full flex-col">
+      <header className="flex items-center gap-3 bg-gradient-to-br from-orange-400 to-red-400 px-6 py-4 text-white shadow-md">
+        <span className="text-3xl leading-none" aria-hidden="true">🐱</span>
+        <div>
+          <h1 className="text-xl font-bold leading-tight">MeowNika</h1>
+          <p className="text-sm text-white/90">Your friendly cat-photo companion</p>
+        </div>
       </header>
 
-      {/* Chat Container */}
-      <main
-        ref={chatContainerRef}
-        className="flex-grow overflow-y-scroll bg-gray-100 p-4"
-      >
+      <main className="flex flex-1 flex-col gap-3 overflow-y-auto bg-orange-50 p-5">
+        {chat.length === 0 && (
+          <p className="m-auto text-center text-sm text-stone-400">
+            Ask for some cats to brighten your day 🐾
+          </p>
+        )}
+
         {chat.map((entry, index) => (
           <div
             key={index}
-            className={`mb-2 p-2 rounded ${
-              entry.sender === "user" ? "bg-blue-200 text-right" : "bg-green-200 text-left"
-            }`}
+            className={`flex ${entry.sender === "user" ? "justify-end" : "justify-start"}`}
           >
-            {entry.text && <p>{entry.text}</p>}
-            {(entry.images || []).length > 0 && // Ensure images is always an array
-              entry.images.map((image, imgIndex) => (
-                <img
-                  key={imgIndex}
-                  src={`http://localhost:8000${image}`}
-                  alt="Cat"
-                  className="w-40 h-40 object-cover rounded-lg shadow-md mt-2"
-                />
-              ))}
+            <div
+              className={`max-w-[80%] rounded-2xl px-4 py-2.5 sm:max-w-md ${
+                entry.sender === "user"
+                  ? "rounded-br-md bg-red-400 text-white"
+                  : "rounded-bl-md border border-orange-100 bg-white text-stone-800"
+              }`}
+            >
+              {entry.text && <p className="whitespace-pre-wrap leading-relaxed">{entry.text}</p>}
+              {(entry.images || []).length > 0 && (
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {entry.images.map((image, imgIndex) => (
+                    <img
+                      key={imgIndex}
+                      src={`http://localhost:8000${image}`}
+                      alt="Cat"
+                      className="h-36 w-36 rounded-xl object-cover shadow-md"
+                    />
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
         ))}
+
+        {isLoading && (
+          <div className="flex justify-start">
+            <div className="flex items-center gap-1 rounded-2xl rounded-bl-md border border-orange-100 bg-white px-4 py-3">
+              {[0, 1, 2].map((i) => (
+                <span
+                  key={i}
+                  className="h-2 w-2 animate-bounce rounded-full bg-stone-300"
+                  style={{ animationDelay: `${i * 0.15}s` }}
+                />
+              ))}
+            </div>
+          </div>
+        )}
+
+        <div ref={messagesEndRef} />
       </main>
 
-      {/* Footer */}
-      <footer className="bg-white border-t p-4">
-        <div className="flex">
-          <input
-            type="text"
-            value={message}
-            onChange={(e) => setMessage(e.target.value)}
-            placeholder="Ask about cats..."
-            className="flex-grow border p-2 rounded-l"
-          />
-          <button
-            onClick={sendMessage}
-            className="p-2 bg-blue-500 text-white rounded-r"
-          >
-            Send
-          </button>
-        </div>
+      <footer className="flex gap-2 border-t border-orange-100 bg-white px-5 py-3.5">
+        <input
+          type="text"
+          value={message}
+          onChange={(e) => setMessage(e.target.value)}
+          onKeyDown={handleKeyDown}
+          placeholder="Ask about cats..."
+          disabled={isLoading}
+          className="flex-1 rounded-full border border-orange-200 px-4 py-2.5 outline-none transition-colors focus:border-red-400 disabled:cursor-not-allowed disabled:bg-stone-100"
+        />
+        <button
+          onClick={sendMessage}
+          disabled={isLoading || !message.trim()}
+          className="rounded-full bg-red-400 px-6 py-2.5 font-semibold text-white transition-colors enabled:hover:bg-red-500 disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          Send
+        </button>
       </footer>
     </div>
   );
