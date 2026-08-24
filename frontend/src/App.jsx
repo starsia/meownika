@@ -5,6 +5,7 @@ function App() {
   // State to manage user input and chat history
   const [message, setMessage] = useState("");
   const [chat, setChat] = useState([]);
+  const [sessionId, setSessionId] = useState(null); // Ties this browser tab to one Claude conversation
   const chatContainerRef = useRef(null); // Reference to the chat container for scrolling
 
   // Function to send a message to the backend
@@ -16,8 +17,12 @@ function App() {
 
     try {
       // Send the message to the backend
-      const res = await axios.post("http://localhost:8000/cats_now/", { message });
-      const { text, images } = res.data;
+      const res = await axios.post("http://localhost:8000/cats_now/", {
+        message,
+        session_id: sessionId,
+      });
+      const { text, images, session_id } = res.data;
+      setSessionId(session_id);
 
       // Add bot response to chat
       setChat((prevChat) => [

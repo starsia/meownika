@@ -1,4 +1,5 @@
 python-dotenv
-openai
+anthropic
 fastapi
 uvicorn
+requests
