@@ -3,6 +3,7 @@ import os
 import uuid
 
 import anthropic
+import redis
 import requests
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -35,9 +36,20 @@ SYSTEM_PROMPT = (
 CAT_API_KEY = os.getenv("CAT_API_KEY")
 CAT_API_URL = "https://api.thecatapi.com/v1"
 
-# In-memory per-session conversation history. Keyed by session_id, sent by the
-# frontend and generated fresh on each page load. Not persisted across restarts.
-sessions: dict[str, list] = {}
+# Per-session conversation history, stored in Redis instead of process memory so
+# it survives server restarts/reloads and works across multiple backend instances.
+# Keyed by session_id, sent by the frontend and generated fresh on each page load.
+redis_client = redis.Redis.from_url(os.getenv("REDIS_URL", "redis://localhost:6379/0"), decode_responses=True)
+SESSION_TTL_SECONDS = 60 * 60 * 24  # sessions expire after a day of inactivity
+
+
+def load_session(session_id):
+    raw = redis_client.get(f"session:{session_id}")
+    return json.loads(raw) if raw else []
+
+
+def save_session(session_id, messages):
+    redis_client.set(f"session:{session_id}", json.dumps(messages), ex=SESSION_TTL_SECONDS)
 
 TOOLS = [
     {
@@ -75,7 +87,7 @@ def get_cat_photo_url(quantity):
 
 def send_and_run(session_id, content):
     """Run one turn of the conversation, handling a single round of tool use."""
-    messages = sessions.setdefault(session_id, [])
+    messages = load_session(session_id)
     messages.append({"role": "user", "content": content})
 
     response = client.messages.create(
@@ -89,7 +101,9 @@ def send_and_run(session_id, content):
     local_paths = []
 
     if response.stop_reason == "tool_use":
-        messages.append({"role": "assistant", "content": response.content})
+        # .model_dump() converts the SDK's content blocks to plain dicts so the
+        # history is JSON-serializable for Redis (and still valid as API input).
+        messages.append({"role": "assistant", "content": [b.model_dump() for b in response.content]})
 
         tool_results = []
         for block in response.content:
@@ -115,10 +129,35 @@ def send_and_run(session_id, content):
             messages=messages,
         )
 
-    messages.append({"role": "assistant", "content": response.content})
+    messages.append({"role": "assistant", "content": [b.model_dump() for b in response.content]})
+    save_session(session_id, messages)
 
     text = next((b.text for b in response.content if b.type == "text"), "")
     return {"text": text, "images": local_paths}
+
+
+def render_history(messages):
+    """Turn raw Claude message history back into {sender, text, images} chat bubbles."""
+    bubbles = []
+    pending_images = []
+
+    for message in messages:
+        role, content = message["role"], message["content"]
+
+        if role == "user" and isinstance(content, str):
+            bubbles.append({"sender": "user", "text": content, "images": []})
+        elif role == "user" and isinstance(content, list):
+            # tool_result blocks: content is a JSON-encoded list of image paths
+            for block in content:
+                if block.get("type") == "tool_result":
+                    pending_images.extend(json.loads(block["content"]))
+        elif role == "assistant":
+            text = next((b["text"] for b in content if b.get("type") == "text"), "")
+            if text:
+                bubbles.append({"sender": "bot", "text": text, "images": pending_images})
+                pending_images = []
+
+    return bubbles
 
 
 def download_images(urls, folder="cat_pictures"):
@@ -161,6 +200,12 @@ async def cats_now(request: AssistantRequest):
         raise HTTPException(status_code=502, detail=f"Claude API error: {e.message}")
     output["session_id"] = session_id
     return output
+
+
+@app.get("/session/{session_id}")
+async def get_session_history(session_id: str):
+    """Returns the chat bubbles for a previously started session, for reload/resume."""
+    return {"messages": render_history(load_session(session_id))}
 
 
 # Allow script to start the FastAPI server automatically

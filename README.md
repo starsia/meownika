@@ -8,11 +8,59 @@ A cat chatbot that uses the Claude API (Anthropic) to display different cats to 
    ```
    ANTHROPIC_API_KEY=your-key-here
    CAT_API_KEY=your-cat-api-key-here
+   REDIS_URL=redis://localhost:6379/0   # optional, this is the default
    ```
-3. `uvicorn main:app --reload` (or `python main.py`)
-4. `cd frontend && npm install && npm run dev`
+3. Start Redis: `docker compose up -d` (or run your own `redis-server`)
+4. `uvicorn main:app --reload` (or `python main.py`)
+5. `cd frontend && npm install && npm run dev`
 
 ## Changelog
+
+### 2026-08-26 — Resume conversation on page reload
+
+Redis persisted conversation history server-side, but a browser refresh still lost
+the chat because `sessionId` and the on-screen messages were only ever kept in React
+state, which resets on reload. The frontend never had a reason to ask the backend for
+history — there was no way to ask.
+
+- Added `GET /session/{session_id}`, which reconstructs `{sender, text, images}` chat
+  bubbles from the raw Redis history.
+- `sessionId` is now saved to `localStorage` (just the ID string — the actual
+  conversation data still lives only in Redis) and reloaded on page load, which
+  triggers a fetch of that session's history to repopulate the chat.
+
+### 2026-08-26 — Session history moved to Redis
+
+Conversation history was previously kept in a plain Python dict (`sessions = {}`) in
+server memory. That meant every conversation was lost on server restart (including
+every `--reload` triggered by a code save), and it wouldn't work correctly if the app
+ever ran as more than one process.
+
+- Session history now lives in Redis (`docker-compose.yml` adds a `redis` service),
+  keyed as `session:<session_id>`, serialized as JSON, with a 24-hour TTL so idle
+  sessions expire on their own instead of accumulating forever.
+- The backend is now stateless — any request can be handled by any backend instance,
+  since the actual state lives in Redis rather than in that instance's memory.
+- Fixed a latent serialization bug this surfaced: Claude's response content blocks
+  are SDK objects, not plain dicts. They happened to work when kept in a Python-native
+  dict, but needed `.model_dump()` to become JSON-safe for Redis (and remain valid
+  input for the next API call either way).
+
+### 2026-08-25 — Switched frontend styling to Tailwind CSS
+
+Replaced hand-written CSS (`App.css`, most of `index.css`) with Tailwind utility
+classes directly in JSX. Added `@tailwindcss/vite` — Tailwind v4's Vite plugin, which
+needs no separate `tailwind.config.js` or PostCSS setup.
+
+### 2026-08-25 — UI cleanup
+
+The original JSX referenced Tailwind utility classes (`bg-blue-500`, `flex-grow`, ...)
+but Tailwind was never actually installed, so those classes did nothing — all real
+styling came from a mismatched `index.css`. Rewrote the chat UI with consistent,
+working CSS: proper chat bubbles, a typing indicator while waiting on a response,
+Enter-to-send, disabled input while a request is in flight, and auto-scroll to the
+latest message. (This pass predates the Tailwind migration above and originally used
+hand-written CSS, since replaced.)
 
 ### 2026-08-25 — Migrated from OpenAI Assistants API to Claude
 
@@ -37,5 +85,6 @@ correct design:
   chat task like this.
 
 Known limitations carried forward from the original design (not addressed in this pass,
-since they're out of scope for an API migration): session history is in-memory only
-(lost on server restart), and the frontend still hardcodes `http://localhost:8000`.
+since they're out of scope for an API migration): session history was in-memory only
+at the time (later fixed — see the Redis entry above), and the frontend still
+hardcodes `http://localhost:8000`.

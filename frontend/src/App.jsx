@@ -4,9 +4,23 @@ import axios from "axios";
 function App() {
   const [message, setMessage] = useState("");
   const [chat, setChat] = useState([]);
-  const [sessionId, setSessionId] = useState(null); // Ties this browser tab to one Claude conversation
+  // Persisted so refreshing the tab resumes the same Claude conversation instead of starting over.
+  const [sessionId, setSessionId] = useState(() => localStorage.getItem("meownika_session_id"));
   const [isLoading, setIsLoading] = useState(false);
   const messagesEndRef = useRef(null);
+
+  // On mount, if we have a saved session, pull its history back from the backend (Redis).
+  useEffect(() => {
+    if (!sessionId) return;
+    axios
+      .get(`http://localhost:8000/session/${sessionId}`)
+      .then((res) => setChat(res.data.messages))
+      .catch(() => {
+        // Session may have expired (TTL) or been cleared — fall back to a fresh one.
+        localStorage.removeItem("meownika_session_id");
+        setSessionId(null);
+      });
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const sendMessage = async () => {
     const trimmed = message.trim();
@@ -23,6 +37,7 @@ function App() {
       });
       const { text, images, session_id } = res.data;
       setSessionId(session_id);
+      localStorage.setItem("meownika_session_id", session_id);
 
       setChat((prevChat) => [
         ...prevChat,
